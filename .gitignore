@@ -1,0 +1,4 @@
+.stack-work/
+*~
+stack.yaml.lock
+cbits/libzip-1.10.1/build/
