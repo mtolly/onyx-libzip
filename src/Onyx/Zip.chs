@@ -54,6 +54,29 @@ instance Semigroup ZipFlags where
 instance Monoid ZipFlags where
   mempty = ZipFlags 0
 
+zip_FL_NOCASE, zip_FL_NODIR, zip_FL_COMPRESSED, zip_FL_UNCHANGED
+  , zip_FL_ENCRYPTED, zip_FL_ENC_GUESS, zip_FL_ENC_RAW, zip_FL_ENC_STRICT
+  , zip_FL_LOCAL, zip_FL_CENTRAL, zip_FL_ENC_UTF_8, zip_FL_ENC_CP437, zip_FL_OVERWRITE
+  :: ZipFlags
+-- these can't just be const directives because they have a 'u' literal...
+zip_FL_NOCASE     = ZipFlags 1
+zip_FL_NODIR      = ZipFlags 2
+zip_FL_COMPRESSED = ZipFlags 4
+zip_FL_UNCHANGED  = ZipFlags 8
+zip_FL_ENCRYPTED  = ZipFlags 32
+zip_FL_ENC_GUESS  = ZipFlags 0
+zip_FL_ENC_RAW    = ZipFlags 64
+zip_FL_ENC_STRICT = ZipFlags 128
+zip_FL_LOCAL      = ZipFlags 256
+zip_FL_CENTRAL    = ZipFlags 512
+zip_FL_ENC_UTF_8  = ZipFlags 2048
+zip_FL_ENC_CP437  = ZipFlags 4096
+zip_FL_OVERWRITE  = ZipFlags 8192
+
+zip_LENGTH_TO_END, zip_LENGTH_UNCHECKED :: Int64
+zip_LENGTH_TO_END    = {#const ZIP_LENGTH_TO_END    #}
+zip_LENGTH_UNCHECKED = {#const ZIP_LENGTH_UNCHECKED #}
+
 newtype ZipOpenFlags = ZipOpenFlags CInt
   deriving (Storable, Show)
 
@@ -156,7 +179,7 @@ instance ZipAllocate ZipError where
     free p
 
 data ZipErrorHs = ZipErrorHs
-  { zipErrorCodeZip    :: CInt
+  { zipErrorCodeZip    :: ZipErrorCode
   , zipErrorCodeSystem :: CInt
   , zipErrorString     :: B.ByteString
   } deriving (Show)
@@ -167,7 +190,7 @@ getZipError err = do
   sys_err <- zip_error_code_system err
   str     <- zip_error_strerror    err
   return ZipErrorHs
-    { zipErrorCodeZip    = zip_err
+    { zipErrorCodeZip    = getZipErrorCode zip_err
     , zipErrorCodeSystem = sys_err
     , zipErrorString     = str
     }
@@ -175,6 +198,90 @@ getZipError err = do
 zipEither :: (Maybe ZipError -> IO (Maybe a)) -> IO (Either ZipErrorHs a)
 zipEither f = zipAlloca $ \err -> f (Just err) >>= \mx -> case mx of
   Nothing -> Left <$> getZipError err
+  Just x  -> return $ Right x
+
+data ZipErrorCode
+  = ZIP_ER_OK
+  | ZIP_ER_MULTIDISK
+  | ZIP_ER_RENAME
+  | ZIP_ER_CLOSE
+  | ZIP_ER_SEEK
+  | ZIP_ER_READ
+  | ZIP_ER_WRITE
+  | ZIP_ER_CRC
+  | ZIP_ER_ZIPCLOSED
+  | ZIP_ER_NOENT
+  | ZIP_ER_EXISTS
+  | ZIP_ER_OPEN
+  | ZIP_ER_TMPOPEN
+  | ZIP_ER_ZLIB
+  | ZIP_ER_MEMORY
+  | ZIP_ER_CHANGED
+  | ZIP_ER_COMPNOTSUPP
+  | ZIP_ER_EOF
+  | ZIP_ER_INVAL
+  | ZIP_ER_NOZIP
+  | ZIP_ER_INTERNAL
+  | ZIP_ER_INCONS
+  | ZIP_ER_REMOVE
+  | ZIP_ER_DELETED
+  | ZIP_ER_ENCRNOTSUPP
+  | ZIP_ER_RDONLY
+  | ZIP_ER_NOPASSWD
+  | ZIP_ER_WRONGPASSWD
+  | ZIP_ER_OPNOTSUPP
+  | ZIP_ER_INUSE
+  | ZIP_ER_TELL
+  | ZIP_ER_COMPRESSED_DATA
+  | ZIP_ER_CANCELLED
+  | ZIP_ER_DATA_LENGTH
+  | ZIP_ER_NOT_ALLOWED
+  | ZipErrorCodeUnknown CInt
+  deriving (Show)
+
+getZipErrorCode :: CInt -> ZipErrorCode
+getZipErrorCode n = case n of
+  {#const ZIP_ER_OK              #} -> ZIP_ER_OK
+  {#const ZIP_ER_MULTIDISK       #} -> ZIP_ER_MULTIDISK
+  {#const ZIP_ER_RENAME          #} -> ZIP_ER_RENAME
+  {#const ZIP_ER_CLOSE           #} -> ZIP_ER_CLOSE
+  {#const ZIP_ER_SEEK            #} -> ZIP_ER_SEEK
+  {#const ZIP_ER_READ            #} -> ZIP_ER_READ
+  {#const ZIP_ER_WRITE           #} -> ZIP_ER_WRITE
+  {#const ZIP_ER_CRC             #} -> ZIP_ER_CRC
+  {#const ZIP_ER_ZIPCLOSED       #} -> ZIP_ER_ZIPCLOSED
+  {#const ZIP_ER_NOENT           #} -> ZIP_ER_NOENT
+  {#const ZIP_ER_EXISTS          #} -> ZIP_ER_EXISTS
+  {#const ZIP_ER_OPEN            #} -> ZIP_ER_OPEN
+  {#const ZIP_ER_TMPOPEN         #} -> ZIP_ER_TMPOPEN
+  {#const ZIP_ER_ZLIB            #} -> ZIP_ER_ZLIB
+  {#const ZIP_ER_MEMORY          #} -> ZIP_ER_MEMORY
+  {#const ZIP_ER_CHANGED         #} -> ZIP_ER_CHANGED
+  {#const ZIP_ER_COMPNOTSUPP     #} -> ZIP_ER_COMPNOTSUPP
+  {#const ZIP_ER_EOF             #} -> ZIP_ER_EOF
+  {#const ZIP_ER_INVAL           #} -> ZIP_ER_INVAL
+  {#const ZIP_ER_NOZIP           #} -> ZIP_ER_NOZIP
+  {#const ZIP_ER_INTERNAL        #} -> ZIP_ER_INTERNAL
+  {#const ZIP_ER_INCONS          #} -> ZIP_ER_INCONS
+  {#const ZIP_ER_REMOVE          #} -> ZIP_ER_REMOVE
+  {#const ZIP_ER_DELETED         #} -> ZIP_ER_DELETED
+  {#const ZIP_ER_ENCRNOTSUPP     #} -> ZIP_ER_ENCRNOTSUPP
+  {#const ZIP_ER_RDONLY          #} -> ZIP_ER_RDONLY
+  {#const ZIP_ER_NOPASSWD        #} -> ZIP_ER_NOPASSWD
+  {#const ZIP_ER_WRONGPASSWD     #} -> ZIP_ER_WRONGPASSWD
+  {#const ZIP_ER_OPNOTSUPP       #} -> ZIP_ER_OPNOTSUPP
+  {#const ZIP_ER_INUSE           #} -> ZIP_ER_INUSE
+  {#const ZIP_ER_TELL            #} -> ZIP_ER_TELL
+  {#const ZIP_ER_COMPRESSED_DATA #} -> ZIP_ER_COMPRESSED_DATA
+  {#const ZIP_ER_CANCELLED       #} -> ZIP_ER_CANCELLED
+  {#const ZIP_ER_DATA_LENGTH     #} -> ZIP_ER_DATA_LENGTH
+  {#const ZIP_ER_NOT_ALLOWED     #} -> ZIP_ER_NOT_ALLOWED
+  _                                 -> ZipErrorCodeUnknown n
+
+-- use for zip_open and zip_fdopen
+zipEitherInt :: (Ptr CInt -> IO (Maybe a)) -> IO (Either ZipErrorCode a)
+zipEitherInt f = alloca $ \p -> f p >>= \mx -> case mx of
+  Nothing -> Left . getZipErrorCode <$> peek p
   Just x  -> return $ Right x
 
 -----------------------------------------------------------
@@ -186,7 +293,7 @@ zipEither f = zipAlloca $ \err -> f (Just err) >>= \mx -> case mx of
 {#fun zip_dir_add                       { `Zip', useAsCString* `B.ByteString', `ZipFlags' } -> `Int64' #}
 {#fun zip_discard                       { `Zip' } -> `()' #}
 
-{#fun zip_get_error as zip_get_error    { `Zip' } -> `ZipError' #}
+{#fun zip_get_error                     { `Zip' } -> `ZipError' #}
 {#fun zip_error_clear                   { `Zip' } -> `()' #}
 {#fun zip_error_code_zip                { `ZipError' } -> `CInt' #}
 {#fun zip_error_code_system             { `ZipError' } -> `CInt' #}

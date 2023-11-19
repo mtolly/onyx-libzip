@@ -19,12 +19,22 @@ import           System.Process                     (CreateProcess (..),
 main :: IO ()
 main = defaultMainWithHooks simpleUserHooks { preConf = myPreConf, confHook = myConfHook }
 
+libzipCMakeFlags :: [String]
+libzipCMakeFlags =
+  [ "-DLIBZIP_DO_INSTALL=OFF"
+  , "-DBUILD_SHARED_LIBS=OFF"
+  -- we only need DEFLATE, I think; if these are enabled they need extra libs
+  , "-DENABLE_BZIP2=OFF"
+  , "-DENABLE_LZMA=OFF"
+  , "-DENABLE_ZSTD=OFF"
+  ]
+
 -- Run cmake and make in the library folder to produce the static library
 myPreConf :: Args -> ConfigFlags -> IO HookedBuildInfo
 myPreConf _ _ = do
   let buildDir = "cbits/libzip-1.10.1/build"
   createDirectoryIfMissing False buildDir
-  void $ readCreateProcess (proc "cmake" ["..", "-DLIBZIP_DO_INSTALL=OFF", "-DBUILD_SHARED_LIBS=OFF"]) { cwd = Just buildDir } ""
+  void $ readCreateProcess (proc "cmake" (".." : libzipCMakeFlags)) { cwd = Just buildDir } ""
   void $ readCreateProcess (proc "make" []) { cwd = Just buildDir } ""
   -- Return empty HookedBuildInfo as we are not modifying build info here.
   return emptyHookedBuildInfo

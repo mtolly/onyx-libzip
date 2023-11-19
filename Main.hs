@@ -16,9 +16,9 @@ main :: IO ()
 main = do
   [path] <- map B8.pack <$> getArgs
   print path
-  bracket (zip_open path zip_RDONLY nullPtr) (mapM_ zip_close) $ \mzip -> case mzip of
-    Nothing -> putStrLn "error opening zip"
-    Just z  -> do
+  bracket (zipEitherInt $ zip_open path zip_RDONLY) (mapM_ zip_close) $ \mzip -> case mzip of
+    Left err -> putStrLn $ "error opening zip: " <> show err
+    Right z  -> do
       print z
       n <- zip_get_num_entries z mempty
       zip_set_default_password z $ Just "SGH9ZIP2PASS4MXKR"
@@ -30,9 +30,9 @@ main = do
               print info
               when (zipStatName info == Just "setlist.info") $ do
                 bracket (zip_fopen_index z i mempty) (mapM_ zip_fclose) $ \mfile -> case mfile of
-                  Nothing   -> putStrLn "couldn't open setlist.info"
+                  Nothing   -> zip_get_error z >>= getZipError >>= print
                   Just file -> readZipFile file >>= print
-            _ -> putStrLn "zip_stat error"
+            _ -> zip_get_error z >>= getZipError >>= print
 
 readZipFile :: ZipFile -> IO BL.ByteString
 readZipFile zf = allocaBytes smallChunkSize $ \buf -> let
