@@ -6,18 +6,18 @@ import           Distribution.PackageDescription    as PD
 import           Distribution.Simple
 import           Distribution.Simple.LocalBuildInfo
 import           Distribution.Simple.PreProcess
-import           Distribution.Simple.Setup          (ConfigFlags)
+import           Distribution.Simple.Setup          (ConfigFlags, CopyFlags)
 import           Distribution.Types.HookedBuildInfo (HookedBuildInfo,
                                                      emptyHookedBuildInfo)
 import           Distribution.Types.Library         (Library (..))
 import           System.Directory                   (createDirectoryIfMissing,
-                                                     getCurrentDirectory)
+                                                     getCurrentDirectory, copyFile)
 import           System.Process                     (CreateProcess (..),
                                                      callProcess, proc,
                                                      readCreateProcess)
 
 main :: IO ()
-main = defaultMainWithHooks simpleUserHooks { preConf = myPreConf, confHook = myConfHook }
+main = defaultMainWithHooks simpleUserHooks { preConf = myPreConf, confHook = myConfHook, copyHook = myCopyHook }
 
 libzipCMakeFlags :: [String]
 libzipCMakeFlags =
@@ -28,6 +28,16 @@ libzipCMakeFlags =
   , "-DENABLE_LZMA=OFF"
   , "-DENABLE_ZSTD=OFF"
   ]
+
+-- On my Stack system, for an external package such as a git reference, this gives me something like
+-- $HOME/.stack/snapshots/x86_64-linux-tinfo6/fccfa9932e1adafc2949e626b62baeceff08655250fc8a4a10c9ee215c88d179/9.6.2/lib
+staticLibOutputDir :: PackageDescription -> LocalBuildInfo -> FilePath
+staticLibOutputDir packageDescription localBuildInfo
+  = flibdir $ absoluteComponentInstallDirs
+    packageDescription
+    localBuildInfo
+    (localUnitId localBuildInfo)
+    NoCopyDest
 
 -- Run cmake and make in the library folder to produce the static library
 myPreConf :: Args -> ConfigFlags -> IO HookedBuildInfo
@@ -59,8 +69,17 @@ myConfHook (description, buildInfo) flags = do
             = (dir ++ "/cbits/libzip-1.10.1/lib") -- zip.h
             : (dir ++ "/cbits/libzip-1.10.1/build") -- zipconf.h
             : PD.includeDirs libraryBuildInfo
-          , PD.extraLibDirs = (dir ++ "/cbits/libzip-1.10.1/build/lib") : PD.extraLibDirs libraryBuildInfo
+          , PD.extraLibDirs
+            = (dir ++ "/cbits/libzip-1.10.1/build/lib") -- this is needed while building this package
+            : staticLibOutputDir packageDescription localBuildInfo -- this is the permanent place we copy to, needed while linking downstream
+            : PD.extraLibDirs libraryBuildInfo
           }
         }
       }
     }
+
+myCopyHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> CopyFlags -> IO ()
+myCopyHook packageDescription localBuildInfo userHooks copyFlags = do
+  copyHook simpleUserHooks packageDescription localBuildInfo userHooks copyFlags
+  copyFile "cbits/libzip-1.10.1/build/lib/libzip.a"
+    (staticLibOutputDir packageDescription localBuildInfo <> "/libzip.a")
