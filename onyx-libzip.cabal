@@ -18,8 +18,8 @@ library
   build-tools: c2hs
   build-depends: base, bytestring
   default-language: Haskell2010
-  -- TODO maybe don't need libcrypto (openssl) on win/mac, libzip says it will use platform libs instead
-  extra-libraries: zip, crypto, z
+  -- don't need crypto lib; win/mac should use platform libs (test?), linux we use stripped down mbedtls
+  extra-libraries: zip, z
 
 executable onyx-libzip-test
   main-is: Main.hs

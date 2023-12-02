@@ -156,20 +156,45 @@ if(HAVE_COMMONCRYPTO)
 elseif(HAVE_WINDOWS_CRYPTO)
   target_sources(zip PRIVATE zip_crypto_win.c)
   target_link_libraries(zip PRIVATE bcrypt)
-elseif(HAVE_GNUTLS)
-  target_sources(zip PRIVATE zip_crypto_gnutls.c)
-  target_link_libraries(zip PRIVATE GnuTLS::GnuTLS Nettle::Nettle)
-elseif(HAVE_OPENSSL)
-  target_sources(zip PRIVATE zip_crypto_openssl.c)
-  target_link_libraries(zip PRIVATE OpenSSL::Crypto)
-elseif(HAVE_MBEDTLS)
-  target_sources(zip PRIVATE zip_crypto_mbedtls.c)
-  target_link_libraries(zip PRIVATE MbedTLS::MbedTLS)
+else()
+  target_sources(zip PRIVATE
+    zip_crypto_mbedtls.c
+    mbedtls/aes.c
+    mbedtls/platform_util.c
+    mbedtls/md.c
+    mbedtls/sha1.c
+    mbedtls/sha3.c
+    mbedtls/sha256.c
+    mbedtls/sha512.c
+    mbedtls/ripemd160.c
+    mbedtls/ctr_drbg.c
+    mbedtls/gcm.c
+    mbedtls/cipher_wrap.c
+    mbedtls/aesni.c
+    mbedtls/camellia.c
+    mbedtls/ccm.c
+    mbedtls/poly1305.c
+    mbedtls/md5.c
+    mbedtls/psa_util.c
+    mbedtls/entropy.c
+    mbedtls/entropy_poll.c
+    mbedtls/aria.c
+    mbedtls/cipher.c
+    mbedtls/pkcs5.c
+    mbedtls/asn1parse.c
+    mbedtls/des.c
+    mbedtls/oid.c
+    mbedtls/bignum.c
+    mbedtls/bignum_core.c
+    mbedtls/constant_time.c
+    mbedtls/chacha20.c
+    mbedtls/chachapoly.c
+    mbedtls/nist_kw.c
+    )
+  # target_link_libraries(zip PRIVATE MbedTLS::MbedTLS)
 endif()
 
-if(HAVE_CRYPTO)
-  target_sources(zip PRIVATE zip_winzip_aes.c zip_source_winzip_aes_decode.c zip_source_winzip_aes_encode.c)
-endif()
+target_sources(zip PRIVATE zip_winzip_aes.c zip_source_winzip_aes_decode.c zip_source_winzip_aes_encode.c)
 
 if(SHARED_LIB_VERSIONNING)
   set_target_properties(zip PROPERTIES VERSION 5.5 SOVERSION 5)

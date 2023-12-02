@@ -41,14 +41,8 @@
 #include "zip_crypto_win.h"
 #elif defined(HAVE_COMMONCRYPTO)
 #include "zip_crypto_commoncrypto.h"
-#elif defined(HAVE_GNUTLS)
-#include "zip_crypto_gnutls.h"
-#elif defined(HAVE_OPENSSL)
-#include "zip_crypto_openssl.h"
-#elif defined(HAVE_MBEDTLS)
-#include "zip_crypto_mbedtls.h"
 #else
-#error "no crypto backend found"
+#include "zip_crypto_mbedtls.h"
 #endif
 
 #endif /*  HAD_ZIP_CRYPTO_H */
