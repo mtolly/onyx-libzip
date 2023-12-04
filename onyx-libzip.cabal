@@ -18,8 +18,11 @@ library
   build-tools: c2hs
   build-depends: base, bytestring
   default-language: Haskell2010
-  -- don't need crypto lib; win/mac should use platform libs (test?), linux we use stripped down mbedtls
+  -- for crypto support: linux uses stripped down mbedtls, win/mac use platform libs
   extra-libraries: zip, z
+  -- system dll for windows crypto
+  if os(mingw32)
+    extra-libraries: Bcrypt
 
 executable onyx-libzip-test
   main-is: Main.hs

@@ -44,7 +44,8 @@ myPreConf :: Args -> ConfigFlags -> IO HookedBuildInfo
 myPreConf _ _ = do
   let buildDir = "cbits/libzip-1.10.1/build"
   createDirectoryIfMissing False buildDir
-  void $ readCreateProcess (proc "cmake" (".." : libzipCMakeFlags)) { cwd = Just buildDir } ""
+  -- need to specify make generator on mingw, otherwise default is ninja
+  void $ readCreateProcess (proc "cmake" (".." : "-G" : "Unix Makefiles" : libzipCMakeFlags)) { cwd = Just buildDir } ""
   void $ readCreateProcess (proc "make" []) { cwd = Just buildDir } ""
   -- Return empty HookedBuildInfo as we are not modifying build info here.
   return emptyHookedBuildInfo
