@@ -12,6 +12,7 @@ import           Distribution.Types.HookedBuildInfo (HookedBuildInfo,
 import           Distribution.Types.Library         (Library (..))
 import           System.Directory                   (createDirectoryIfMissing,
                                                      getCurrentDirectory, copyFile)
+import           System.Environment                 (setEnv)
 import           System.Process                     (CreateProcess (..),
                                                      callProcess, proc,
                                                      readCreateProcess)
@@ -44,6 +45,10 @@ myPreConf :: Args -> ConfigFlags -> IO HookedBuildInfo
 myPreConf _ _ = do
   let buildDir = "cbits/libzip-1.10.1/build"
   createDirectoryIfMissing False buildDir
+  -- this is needed for some reason on older systems like Ubuntu 16.04. but newer ones maybe do it automatically.
+  -- error you get otherwise is
+  -- /usr/bin/ld.gold: error: /tmp/stack-eeeb9bc293444ad7/onyx-libzip-0.1.0.0/cbits/libzip-1.10.1/build/lib/libzip.a(zip_close.c.o): requires dynamic R_X86_64_PC32 reloc against 'malloc' which may overflow at runtime; recompile with -fPIC
+  setEnv "CFLAGS" "-fPIC"
   -- need to specify make generator on mingw, otherwise default is ninja
   void $ readCreateProcess (proc "cmake" (".." : "-G" : "Unix Makefiles" : libzipCMakeFlags)) { cwd = Just buildDir } ""
   void $ readCreateProcess (proc "make" []) { cwd = Just buildDir } ""
