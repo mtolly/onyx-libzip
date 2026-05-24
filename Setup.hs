@@ -6,7 +6,9 @@ import           Distribution.PackageDescription    as PD
 import           Distribution.Simple
 import           Distribution.Simple.LocalBuildInfo
 import           Distribution.Simple.PreProcess
-import           Distribution.Simple.Setup          (ConfigFlags, CopyFlags)
+import           Distribution.Simple.Setup          (ConfigFlags, CopyFlags,
+                                                     copyDest,
+                                                     fromFlagOrDefault)
 import           Distribution.Types.HookedBuildInfo (HookedBuildInfo,
                                                      emptyHookedBuildInfo)
 import           Distribution.Types.Library         (Library (..))
@@ -24,6 +26,10 @@ libzipCMakeFlags :: [String]
 libzipCMakeFlags =
   [ "-DLIBZIP_DO_INSTALL=OFF"
   , "-DBUILD_SHARED_LIBS=OFF"
+  , "-DBUILD_REGRESS=OFF"
+  , "-DBUILD_TOOLS=OFF"
+  , "-DBUILD_EXAMPLES=OFF"
+  , "-DBUILD_DOC=OFF"
   -- we only need DEFLATE, I think; if these are enabled they need extra libs
   , "-DENABLE_BZIP2=OFF"
   , "-DENABLE_LZMA=OFF"
@@ -32,13 +38,13 @@ libzipCMakeFlags =
 
 -- On my Stack system, for an external package such as a git reference, this gives me something like
 -- $HOME/.stack/snapshots/x86_64-linux-tinfo6/fccfa9932e1adafc2949e626b62baeceff08655250fc8a4a10c9ee215c88d179/9.6.2/lib
-staticLibOutputDir :: PackageDescription -> LocalBuildInfo -> FilePath
-staticLibOutputDir packageDescription localBuildInfo
+staticLibOutputDir :: CopyDest -> PackageDescription -> LocalBuildInfo -> FilePath
+staticLibOutputDir copyDest' packageDescription localBuildInfo
   = flibdir $ absoluteComponentInstallDirs
     packageDescription
     localBuildInfo
     (localUnitId localBuildInfo)
-    NoCopyDest
+    copyDest'
 
 -- Run cmake and make in the library folder to produce the static library
 myPreConf :: Args -> ConfigFlags -> IO HookedBuildInfo
@@ -77,7 +83,7 @@ myConfHook (description, buildInfo) flags = do
             : PD.includeDirs libraryBuildInfo
           , PD.extraLibDirs
             = (dir ++ "/cbits/libzip-1.10.1/build/lib") -- this is needed while building this package
-            : staticLibOutputDir packageDescription localBuildInfo -- this is the permanent place we copy to, needed while linking downstream
+            : staticLibOutputDir NoCopyDest packageDescription localBuildInfo -- this is the permanent place we copy to, needed while linking downstream
             : PD.extraLibDirs libraryBuildInfo
           }
         }
@@ -87,5 +93,9 @@ myConfHook (description, buildInfo) flags = do
 myCopyHook :: PackageDescription -> LocalBuildInfo -> UserHooks -> CopyFlags -> IO ()
 myCopyHook packageDescription localBuildInfo userHooks copyFlags = do
   copyHook simpleUserHooks packageDescription localBuildInfo userHooks copyFlags
-  copyFile "cbits/libzip-1.10.1/build/lib/libzip.a"
-    (staticLibOutputDir packageDescription localBuildInfo <> "/libzip.a")
+  let outDir = staticLibOutputDir
+        (fromFlagOrDefault NoCopyDest (copyDest copyFlags))
+        packageDescription
+        localBuildInfo
+  createDirectoryIfMissing True outDir
+  copyFile "cbits/libzip-1.10.1/build/lib/libzip.a" (outDir <> "/libzip.a")
